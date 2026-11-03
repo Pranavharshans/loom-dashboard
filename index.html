@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Loom-LFM3-520M training</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<style>
+  :root { --bg:#f7f7f5; --panel:#fff; --fg:#1b1b1a; --muted:#6b6a66; --line:#e3e2dd; --grid:#eeede9; --ok:#1f8a4c; --warn:#b07a12; --bad:#c2412d; --c0:#3f6fd8; --c1:#d26a2b; --c2:#2f9e8f; --c3:#8a5bd6; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#151514; --panel:#1e1e1c; --fg:#ecebe6; --muted:#9c9b95; --line:#33322f; --grid:#2a2a27; --ok:#4cc27e; --warn:#e0a53a; --bad:#ef6b55; --c0:#6f97ee; --c1:#ec8c4f; --c2:#4fc2b2; --c3:#a988ea; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 20px 16px 40px; display:flex; flex-direction:column; gap:16px; }
+  header { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-start; gap:12px; }
+  h1 { margin:0; font: 400 28px/1.2 Georgia, "Times New Roman", serif; }
+  .lede { margin:4px 0 0; color:var(--muted); max-width:70ch; }
+  .lede b { color:var(--fg); font-variant-numeric: tabular-nums; }
+  .right { display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+  .pill { display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:2px 10px; border-radius:999px; border:1px solid currentColor; color:var(--muted); }
+  .pill::before { content:""; width:8px; height:8px; border-radius:50%; background:currentColor; }
+  .pill.ok { color:var(--ok); } .pill.warn { color:var(--warn); } .pill.bad { color:var(--bad); }
+  .pill.ok::before { animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity:.3; } }
+  .timer { font-size:12px; color:var(--muted); font-variant-numeric: tabular-nums; text-align:right; }
+  .timer b { color:var(--fg); font-size:15px; }
+  .tbar { width:180px; height:4px; background:var(--line); border-radius:999px; overflow:hidden; }
+  .tbar i { display:block; height:100%; background:var(--c0); width:0; transition: width 1s linear; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; min-width:0; }
+  .card h2 { margin:0; font-size:15px; font-weight:600; }
+  .note { margin:2px 0 10px; font-size:12px; color:var(--muted); }
+  .timeline { display:flex; height:14px; border-radius:999px; overflow:hidden; background:var(--line); }
+  .seg { position:relative; height:100%; border-right:2px solid var(--panel); } .seg:last-child { border-right:0; }
+  .seg i { position:absolute; inset:0 auto 0 0; }
+  .labels { display:flex; font-size:12px; color:var(--muted); margin-top:4px; }
+  .labels span { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; padding-right:4px; }
+  .pline { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px; margin-top:10px; font-size:12px; color:var(--muted); font-variant-numeric: tabular-nums; }
+  .pline b { color:var(--fg); }
+  .kpis { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:12px; }
+  .kpi { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px; }
+  .kpi dt { font-size:12px; color:var(--muted); } .kpi dd { margin:2px 0; font: 400 26px/1.2 Georgia, serif; font-variant-numeric: tabular-nums; white-space:nowrap; }
+  .kpi small { font-size:12px; color:var(--muted); }
+  .toolbar { position:sticky; top:0; z-index:5; display:flex; flex-wrap:wrap; gap:12px 20px; align-items:center; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:8px 12px; font-size:12px; color:var(--muted); }
+  .seg-btn { display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; margin-left:6px; }
+  .seg-btn button { font:inherit; border:0; background:transparent; color:var(--muted); padding:4px 10px; cursor:pointer; }
+  .seg-btn button + button { border-left:1px solid var(--line); }
+  .seg-btn button[aria-pressed=true] { background:var(--bg); color:var(--fg); font-weight:600; }
+  input[type=range] { width:120px; vertical-align:middle; accent-color: var(--c0); }
+  .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap:12px; }
+  .chart { position:relative; min-height:220px; } .chart.tall { min-height:320px; }
+  .chart svg { display:block; overflow:visible; }
+  .chart text { font-size:11px; fill:var(--muted); font-variant-numeric: tabular-nums; }
+  .tip { position:absolute; top:0; left:0; background:var(--panel); border:1px solid var(--line); border-radius:8px; box-shadow:0 4px 14px rgba(0,0,0,.15); padding:4px 8px; font-size:12px; pointer-events:none; white-space:nowrap; z-index:2; }
+  .tip .h { color:var(--muted); }
+  .empty { color:var(--muted); font-size:12px; padding:80px 0; text-align:center; }
+  table { width:100%; border-collapse:collapse; font-size:12px; font-variant-numeric: tabular-nums; }
+  th { text-align:left; color:var(--muted); font-weight:600; border-bottom:1px solid var(--line); padding:4px 8px; position:sticky; top:0; background:var(--panel); }
+  td { border-bottom:1px solid var(--line); padding:4px 8px; white-space:nowrap; }
+  .num { text-align:right; } tr.running td { font-weight:600; } tr.upcoming td { color:var(--muted); } tr.crash td { color:var(--bad); }
+  .box { max-height:320px; overflow:auto; }
+  .banner { border:1px solid var(--bad); color:var(--bad); background:var(--panel); border-radius:10px; padding:8px 12px; font-size:13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Loom-LFM3-520M pretraining</h1>
+      <p class="lede" id="lede">Loading…</p>
+    </div>
+    <div class="right">
+      <span class="pill" id="state">—</span>
+      <div class="timer">Next update in <b id="countdown">—</b><br><span id="fetched">—</span></div>
+      <div class="tbar"><i id="tfill"></i></div>
+      <div class="timer" id="health">Health check: —</div>
+    </div>
+  </header>
+  <div class="banner" id="sshwarn" hidden>Couldn't reach the server on the last update (SSH connection dropped). Showing the last data fetched. Reconnect the SSH session to resume.</div>
+
+  <section class="card">
+    <div class="timeline" id="timeline"></div>
+    <div class="labels" id="plabels"></div>
+    <div class="pline" id="pline"></div>
+  </section>
+
+  <dl class="kpis" id="kpis"></dl>
+
+  <div class="toolbar">
+    <span>X axis <span class="seg-btn" data-ctl="x"><button data-v="step" aria-pressed="true">Step</button><button data-v="tokens" aria-pressed="false">Tokens</button><button data-v="hours" aria-pressed="false">Hours</button></span></span>
+    <span>Range <span class="seg-btn" data-ctl="range"><button data-v="all" aria-pressed="true">All</button><button data-v="recent" aria-pressed="false">Last 10%</button></span></span>
+    <label>Smoothing <input type="range" id="smooth" min="0" max="0.99" step="0.01" value="0.9"> <b id="smoothv">0.90</b></label>
+    <label><input type="checkbox" id="log"> Log scale loss</label>
+  </div>
+
+  <section class="card"><h2>Training loss</h2><p class="note">Smoothed line over the faint raw values. Shaded bands are the 32K and 128K phases.</p><div class="chart tall" data-chart="loss"></div></section>
+  <div class="grid">
+    <section class="card"><h2>Validation loss</h2><p class="note">Held-out 4K-context documents, every 250 steps.</p><div class="chart" data-chart="val_loss"></div></section>
+    <section class="card"><h2>Learning rate</h2><p class="note">Warmup, then the schedule over 100B tokens.</p><div class="chart" data-chart="lr"></div></section>
+    <section class="card"><h2>Gradient norm</h2><p class="note">Before clipping at 1.0.</p><div class="chart" data-chart="grad_norm"></div></section>
+    <section class="card"><h2>Throughput</h2><p class="note">Tokens per second. Dips are checkpoint saves.</p><div class="chart" data-chart="tok_s"></div></section>
+    <section class="card"><h2>Compute</h2><p class="note">Model TFLOPS achieved.</p><div class="chart" data-chart="tflops"></div></section>
+    <section class="card"><h2>Peak GPU memory</h2><p class="note">GB allocated by PyTorch. GPU 4 has 179 GB; the settings, sized for the 90 GB MIG slice, leave the rest unused.</p><div class="chart" data-chart="mem_gb"></div></section>
+  </div>
+  <div class="grid">
+    <section class="card"><h2>Phases</h2><div class="box"><table><thead><tr><th>Phase</th><th class="num">Context</th><th class="num">Steps</th><th class="num">Tokens at end</th><th>State</th></tr></thead><tbody id="phases"></tbody></table></div></section>
+    <section class="card"><h2>Run events</h2><div class="box"><table><thead><tr><th>Time</th><th class="num">Step</th><th>Event</th></tr></thead><tbody id="events"></tbody></table></div></section>
+  </div>
+</div>
+
+<script>
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const ui = { x: 'step', range: 'all', smooth: 0.9, log: false };
+const compact = (v) => new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(v);
+const hours = (v) => v >= 48 ? (v / 24).toFixed(1) + ' days' : v >= 1 ? v.toFixed(1) + ' h' : Math.round(v * 60) + ' min';
+const tokB = (v) => v >= 1e9 ? (v / 1e9).toFixed(v >= 1e10 ? 1 : 2) + 'B' : compact(v);
+const tfmt = d3.timeFormat('%b %-d, %H:%M');
+let D = null;
+
+function loadHealth() {
+  const s = document.createElement('script');
+  s.src = 'health.js?t=' + Date.now();
+  s.onload = () => {
+    s.remove();
+    const h = window.LOOM_HEALTH, el = document.getElementById('health');
+    if (!h) return;
+    const ok = h.text.startsWith('HEALTHY');
+    el.textContent = `Health check ${d3.timeFormat('%H:%M')(new Date(h.at * 1000))}: ${ok ? 'healthy' : h.text.split('\n').slice(0, 3).join(' · ')}`;
+    el.style.color = ok ? css('--ok') : css('--bad');
+  };
+  s.onerror = () => s.remove();
+  document.body.appendChild(s);
+}
+
+function loadData() {
+  loadHealth();
+  const s = document.createElement('script');
+  s.src = 'data.js?t=' + Date.now();
+  s.onload = () => { s.remove(); if (window.LOOM && (!D || window.LOOM.fetched_at !== D.fetched_at)) { D = window.LOOM; render(); } };
+  s.onerror = () => s.remove();
+  document.body.appendChild(s);
+}
+
+function tick() {
+  if (!D) return;
+  const now = Date.now() / 1000;
+  const left = Math.max(0, D.next_at - now);
+  const total = D.next_at - D.fetched_at;
+  document.getElementById('countdown').textContent = left > 0 ? `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}` : 'any moment';
+  document.getElementById('tfill').style.width = (100 * (1 - left / total)) + '%';
+  document.getElementById('fetched').textContent = 'Fetched ' + tfmt(new Date(D.fetched_at * 1000)) + (D.status[0]?.last_logged ? ' · last step logged ' + d3.timeFormat('%H:%M')(new Date(D.status[0].last_logged)) : '');
+  if (left <= 0) loadData();
+}
+
+function render() {
+  const s = D.status[0] || {};
+  document.getElementById('sshwarn').hidden = D.ssh_ok;
+  const st = document.getElementById('state');
+  const names = { training: 'Training', starting: 'Starting', restarting: 'Restarting after a crash', stopped: 'Stopped', finished: 'Finished' };
+  st.textContent = names[s.state] || s.state || '—';
+  st.className = 'pill ' + ({ training: 'ok', starting: 'warn', restarting: 'bad', stopped: 'bad' }[s.state] || '');
+  const lede = document.getElementById('lede');
+  lede.replaceChildren();
+  const add = (t, b) => { if (b) { const e = document.createElement('b'); e.textContent = t; lede.append(e); } else lede.append(t); };
+  add('100B tokens on one B200 (MIG slice to step 25,500, then full GPU 4). Training loss '); add(s.loss != null ? s.loss.toFixed(3) : '—', 1);
+  add(', validation loss '); add(s.val_loss != null ? s.val_loss.toFixed(3) : '—', 1);
+  add(' after '); add(tokB(s.tokens || 0), 1); add(' tokens, about '); add(s.eta_hours > 0 ? hours(s.eta_hours) : '—', 1); add(' to go.');
+
+  const ph = D.phases, total = ph.length ? ph[ph.length - 1].end_tokens : 1;
+  const tl = document.getElementById('timeline'), pl = document.getElementById('plabels');
+  tl.replaceChildren(); pl.replaceChildren();
+  ph.forEach((p, i) => {
+    const w = 100 * (p.end_tokens - p.start_tokens) / total;
+    const seg = document.createElement('div'); seg.className = 'seg'; seg.style.width = w + '%';
+    const f = document.createElement('i'); f.style.background = css('--c' + i);
+    f.style.width = 100 * Math.min(1, Math.max(0, ((s.tokens || 0) - p.start_tokens) / (p.end_tokens - p.start_tokens))) + '%';
+    seg.append(f); tl.append(seg);
+    const l = document.createElement('span'); l.style.width = w + '%';
+    l.textContent = w > 8 ? `${p.name} · ${Math.round((p.end_tokens - p.start_tokens) / 1e9)}B` : p.context; pl.append(l);
+  });
+  const pline = document.getElementById('pline'); pline.replaceChildren();
+  [['Step ', d3.format(',')(s.step || 0), ' of ' + d3.format(',')(s.total_steps || 0)], ['', d3.format('.2%')(s.progress || 0), ' of 100B tokens'],
+   ['Phase ', s.phase || '—', ''], ['Running ', s.elapsed_hours ? hours(s.elapsed_hours) : '—', ''], ['Time left ', s.eta_hours > 0 ? hours(s.eta_hours) : '—', '']]
+    .forEach(([a, b, c]) => { const sp = document.createElement('span'); const bb = document.createElement('b'); bb.textContent = b; sp.append(a, bb, c); pline.append(sp); });
+
+  const k = document.getElementById('kpis'); k.replaceChildren();
+  [['Train loss', s.loss?.toFixed(3), 'Mean of last 10 logs'], ['Val loss', s.val_loss?.toFixed(3), 'Best ' + (s.best_val_loss?.toFixed(3) ?? '—')],
+   ['Throughput', s.tok_s ? compact(s.tok_s) : null, 'Tokens per second'], ['Compute', s.tflops?.toFixed(0), 'Model TFLOPS'],
+   ['Peak memory', s.mem_gb ? s.mem_gb.toFixed(1) + ' GB' : null, 'Of ~90 GB'], ['Restarts', s.restarts ?? null, 'Last checkpoint ' + (s.last_checkpoint != null ? d3.format(',')(s.last_checkpoint) : '—')]]
+    .forEach(([t, v, n]) => { const d = document.createElement('div'); d.className = 'kpi'; const dt = document.createElement('dt'); dt.textContent = t; const dd = document.createElement('dd'); dd.textContent = v ?? '—'; const sm = document.createElement('small'); sm.textContent = n; d.append(dt, dd, sm); k.append(d); });
+
+  const pt = document.getElementById('phases'); pt.replaceChildren();
+  ph.forEach((p) => { const tr = pt.insertRow(); tr.className = p.state; [[p.name], [p.context, 'num'], [d3.format(',')(p.start_step) + '–' + d3.format(',')(p.end_step), 'num'], [(p.end_tokens / 1e9).toFixed(1) + 'B', 'num'], [p.state]].forEach(([t, c]) => { const td = tr.insertCell(); td.textContent = t; if (c) td.className = c; }); });
+  const et = document.getElementById('events'); et.replaceChildren();
+  D.events.forEach((e) => { const tr = et.insertRow(); if (e.kind === 'crash') tr.className = 'crash'; const t = new Date(e.time); [[isNaN(t) ? e.time : tfmt(t)], [e.step == null ? '' : d3.format(',')(e.step), 'num'], [e.detail]].forEach(([x, c]) => { const td = tr.insertCell(); td.textContent = x; if (c) td.className = c; }); });
+  drawCharts();
+}
+
+const ema = (pts, a) => { if (a <= 0) return pts; let s = 0, w = 0; return pts.map((p) => { s = a * s + (1 - a) * p.y; w = a * w + (1 - a); return { ...p, y: s / w }; }); };
+const XF = { step: (v) => v >= 1000 ? compact(v) : String(Math.round(v)), tokens: tokB, hours: (v) => v >= 48 ? (v / 24).toFixed(1) + 'd' : v.toFixed(v < 10 ? 1 : 0) + 'h' };
+const CH = {
+  loss: { src: 'train', raw: true, yf: (v) => v.toFixed(2), name: 'loss' },
+  val_loss: { src: 'evals', dots: true, flat: true, yf: (v) => v.toFixed(3), name: 'val loss' },
+  lr: { src: 'train', flat: true, zero: true, yf: (v) => v === 0 ? '0' : d3.format('.1e')(v), name: 'lr' },
+  grad_norm: { src: 'train', raw: true, zero: true, yf: (v) => v.toFixed(2), name: 'grad norm' },
+  tok_s: { src: 'train', raw: true, zero: true, yf: compact, name: 'tok/s' },
+  tflops: { src: 'train', raw: true, zero: true, yf: (v) => v.toFixed(0), name: 'TFLOPS' },
+  mem_gb: { src: 'train', flat: true, zero: true, yf: (v) => v.toFixed(0) + ' GB', name: 'memory' },
+};
+
+function drawCharts() { document.querySelectorAll('.chart').forEach(drawChart); }
+
+function drawChart(el) {
+  const kind = el.dataset.chart, c = CH[kind];
+  el.replaceChildren();
+  const tr = D.train.filter((r) => r.loss != null);
+  const t0 = tr.length ? new Date(tr[0].time).getTime() : 0;
+  const xv = (r) => ui.x === 'step' ? r.step : ui.x === 'tokens' ? r.tokens : (new Date(r.time).getTime() - t0) / 3.6e6;
+  let pts = D[c.src].filter((r) => r[kind] != null).map((r) => ({ x: xv(r), y: r[kind], step: r.step, tokens: r.tokens }));
+  if (!pts.length) { const e = document.createElement('div'); e.className = 'empty'; e.textContent = 'No data yet'; el.append(e); return; }
+  const xmax = d3.max(tr.length ? tr : D[c.src], xv), xmin = ui.range === 'recent' ? xmax * 0.9 : 0;
+  pts = pts.filter((p) => p.x >= xmin);
+  const line = c.flat ? pts : ema(pts, ui.smooth);
+  const color = css('--c0');
+  const W = Math.max(280, el.clientWidth), H = el.classList.contains('tall') ? 320 : 220;
+  const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('height', H);
+  const log = kind === 'loss' && ui.log;
+  let lo = c.zero ? 0 : d3.min(line, (p) => p.y), hi = d3.max((c.raw ? pts : line).map((p) => p.y));
+  if (kind === 'loss') hi = Math.min(hi, d3.min(line, (p) => p.y) + (ui.range === 'recent' ? 0.6 : 4));
+  if (kind === 'grad_norm') hi = Math.min(hi, Math.max(1.2, d3.quantile(pts.map((p) => p.y).sort(d3.ascending), 0.99) * 1.3));
+  const pad = (hi - lo) * 0.08 || 0.05;
+  const y = (log ? d3.scaleLog() : d3.scaleLinear()).domain(log ? [Math.max(lo - pad, 0.5), hi + pad] : [c.zero ? 0 : lo - pad, hi + pad]);
+  if (!log) y.nice();
+  const yt = y.ticks(5), ytf = log ? y.tickFormat(5, '.2~f') : c.yf;
+  const meas = (arr) => { const t = svg.append('text').attr('x', -9999); const w = d3.max(arr, (s) => t.text(s).node().getComputedTextLength()) || 0; t.remove(); return w; };
+  const last = line[line.length - 1];
+  const m = { top: 10, bottom: 24, left: meas(yt.map(ytf).filter(Boolean)) + 10, right: meas([c.yf(last.y)]) + 14 };
+  y.range([H - m.bottom, m.top]);
+  const x = d3.scaleLinear().domain([xmin, Math.max(xmax, xmin + 1)]).range([m.left, W - m.right]);
+  const id = 'c' + Math.random().toString(36).slice(2);
+  svg.append('clipPath').attr('id', id).append('rect').attr('x', m.left).attr('y', m.top).attr('width', W - m.left - m.right).attr('height', H - m.top - m.bottom);
+  if (ui.x !== 'hours') D.phases.filter((p) => p.seq_len > 4096).forEach((p) => {
+    const a = ui.x === 'step' ? p.start_step : p.start_tokens, b = ui.x === 'step' ? p.end_step : p.end_tokens;
+    const x0 = Math.max(x(a), m.left), x1 = Math.min(x(b), W - m.right); if (x1 <= x0) return;
+    svg.append('rect').attr('x', x0).attr('y', m.top).attr('width', x1 - x0).attr('height', H - m.top - m.bottom).attr('fill', css('--grid')).attr('opacity', p.seq_len > 32768 ? 1 : 0.6);
+    if (x1 - x0 > 28) svg.append('text').attr('x', x0 + 4).attr('y', m.top + 12).text(p.context);
+  });
+  svg.append('g').selectAll('line').data(yt).join('line').attr('x1', m.left).attr('x2', W - m.right).attr('y1', y).attr('y2', y).attr('stroke', css('--grid'));
+  svg.append('g').selectAll('text').data(yt).join('text').attr('x', m.left - 8).attr('y', y).attr('dy', '0.32em').attr('text-anchor', 'end').text(ytf);
+  const xt = x.ticks(Math.max(2, Math.floor((W - m.left - m.right) / 80)));
+  svg.append('line').attr('x1', m.left).attr('x2', W - m.right).attr('y1', H - m.bottom).attr('y2', H - m.bottom).attr('stroke', css('--line'));
+  svg.append('g').selectAll('text').data(xt).join('text').attr('x', x).attr('y', H - 6).attr('text-anchor', 'middle').text(XF[ui.x]);
+  const plot = svg.append('g').attr('clip-path', `url(#${id})`);
+  const path = d3.line().x((p) => x(p.x)).y((p) => y(log ? Math.max(p.y, 0.5) : p.y));
+  if (c.raw && ui.smooth > 0) plot.append('path').attr('d', path(pts)).attr('fill', 'none').attr('stroke', color).attr('stroke-width', 1).attr('opacity', 0.2);
+  plot.append('path').attr('d', path(line)).attr('fill', 'none').attr('stroke', color).attr('stroke-width', 2).attr('stroke-linejoin', 'round').attr('stroke-linecap', 'round');
+  if (c.dots) plot.append('g').selectAll('circle').data(line).join('circle').attr('cx', (p) => x(p.x)).attr('cy', (p) => y(p.y)).attr('r', 2.5).attr('fill', color);
+  svg.append('circle').attr('cx', x(last.x)).attr('cy', y(last.y)).attr('r', 3.5).attr('fill', color);
+  svg.append('text').attr('x', W - m.right + 8).attr('y', Math.min(Math.max(y(last.y), m.top + 6), H - m.bottom - 6)).attr('dy', '0.32em').style('fill', color).style('font-weight', 600).text(c.yf(last.y));
+  const tip = d3.select(el).append('div').attr('class', 'tip').style('display', 'none');
+  const rule = svg.append('line').attr('y1', m.top).attr('y2', H - m.bottom).attr('stroke', css('--muted')).attr('stroke-dasharray', '3 3').style('display', 'none');
+  const dot = svg.append('circle').attr('r', 4).attr('fill', color).style('display', 'none');
+  const bis = d3.bisector((p) => p.x).center;
+  const hide = () => { tip.style('display', 'none'); rule.style('display', 'none'); dot.style('display', 'none'); };
+  svg.append('rect').attr('x', m.left).attr('y', m.top).attr('width', W - m.left - m.right).attr('height', H - m.top - m.bottom).attr('fill', 'transparent')
+    .on('pointermove', (ev) => {
+      const [mx] = d3.pointer(ev); const i = bis(line, x.invert(mx)); const p = line[i]; if (!p) return hide();
+      const hx = x(p.x); rule.style('display', null).attr('x1', hx).attr('x2', hx); dot.style('display', null).attr('cx', hx).attr('cy', y(p.y));
+      tip.style('display', null).selectAll('*').remove();
+      tip.append('div').attr('class', 'h').text(`Step ${d3.format(',')(p.step)} · ${tokB(p.tokens)} tokens`);
+      tip.append('div').text(`${c.name} ${c.yf(p.y)}`);
+      if (c.raw && ui.smooth > 0 && pts[i]) tip.append('div').attr('class', 'h').text(`raw ${c.yf(pts[i].y)}`);
+      const tw = tip.node().offsetWidth; tip.style('left', `${Math.min(Math.max(hx + 12, 0), W - tw)}px`).style('top', `${m.top}px`);
+    }).on('pointerleave', hide);
+}
+
+document.querySelectorAll('.seg-btn').forEach((g) => g.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+  ui[g.dataset.ctl] = b.dataset.v; g.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); if (D) drawCharts();
+})));
+document.getElementById('smooth').addEventListener('input', (e) => { ui.smooth = +e.target.value; document.getElementById('smoothv').textContent = ui.smooth.toFixed(2); if (D) drawCharts(); });
+document.getElementById('log').addEventListener('change', (e) => { ui.log = e.target.checked; if (D) drawCharts(); });
+let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => D && drawCharts(), 150); });
+loadData();
+setInterval(tick, 1000);
+setInterval(loadData, 60000);
+</script>
+</body>
+</html>
