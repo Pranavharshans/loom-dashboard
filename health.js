@@ -1,1 +1,1 @@
-window.LOOM_HEALTH={"at": 1793882282.8004391, "text": "sece2026-alumni01@aicentre.sece.ac.in: Permission denied (publickey,password).\r\nrsync(9815): error: unexpected end of file\nSSH_DOWN"};
+window.LOOM_HEALTH={"at": 1793885720.2198882, "text": "ssh: Could not resolve hostname aicentre.sece.ac.in: nodename nor servname provided, or not known\r\nrsync(11770): error: unexpected end of file\nSSH_DOWN"};
