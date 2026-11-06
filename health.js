@@ -1,1 +1,1 @@
-window.LOOM_HEALTH={"at": 1793971384.196189, "text": "HEALTHY step 80890 loss 1.813 val 1.9875 disk 22731GB free"};
+window.LOOM_HEALTH={"at": 1793974987.0997329, "text": "ISSUES step 81350 loss 2.032 val 1.987 disk 22673GB free\n- training loss went up: 1.813 -> 1.995"};
