@@ -6,8 +6,8 @@
 <title>Loom-LFM3-520M training</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <style>
-  :root { --bg:#f7f7f5; --panel:#fff; --fg:#1b1b1a; --muted:#6b6a66; --line:#e3e2dd; --grid:#eeede9; --ok:#1f8a4c; --warn:#b07a12; --bad:#c2412d; --c0:#3f6fd8; --c1:#d26a2b; --c2:#2f9e8f; --c3:#8a5bd6; }
-  @media (prefers-color-scheme: dark) { :root { --bg:#151514; --panel:#1e1e1c; --fg:#ecebe6; --muted:#9c9b95; --line:#33322f; --grid:#2a2a27; --ok:#4cc27e; --warn:#e0a53a; --bad:#ef6b55; --c0:#6f97ee; --c1:#ec8c4f; --c2:#4fc2b2; --c3:#a988ea; } }
+  :root { --bg:#f7f7f5; --panel:#fff; --fg:#1b1b1a; --muted:#6b6a66; --line:#e3e2dd; --grid:#eeede9; --ok:#1f8a4c; --warn:#b07a12; --bad:#c2412d; --c0:#3f6fd8; --c1:#d26a2b; --c2:#2f9e8f; --c3:#8a5bd6; --cpt:#c23d7a; --cptband:rgba(194,61,122,.07); --s0:#2f9e8f; --s1:#3f6fd8; --s2:#d26a2b; --s3:#c2412d; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#151514; --panel:#1e1e1c; --fg:#ecebe6; --muted:#9c9b95; --line:#33322f; --grid:#2a2a27; --ok:#4cc27e; --warn:#e0a53a; --bad:#ef6b55; --c0:#6f97ee; --c1:#ec8c4f; --c2:#4fc2b2; --c3:#a988ea; --cpt:#ec77ad; --cptband:rgba(236,119,173,.10); --s0:#4fc2b2; --s1:#6f97ee; --s2:#ec8c4f; --s3:#ef6b55; } }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif; }
   .wrap { max-width: 1280px; margin: 0 auto; padding: 20px 16px 40px; display:flex; flex-direction:column; gap:16px; }
@@ -58,6 +58,14 @@
   .num { text-align:right; } tr.running td { font-weight:600; } tr.upcoming td { color:var(--muted); } tr.crash td { color:var(--bad); }
   .box { max-height:320px; overflow:auto; }
   .banner { border:1px solid var(--bad); color:var(--bad); background:var(--panel); border-radius:10px; padding:8px 12px; font-size:13px; }
+  .legend { display:flex; flex-wrap:wrap; gap:4px 14px; font-size:12px; color:var(--muted); margin:-4px 0 8px; }
+  .legend span { display:inline-flex; align-items:center; gap:6px; } .legend i { width:14px; height:3px; border-radius:2px; display:inline-block; }
+  .divider { display:flex; align-items:baseline; gap:12px; margin-top:12px; padding-top:16px; border-top:1px solid var(--line); }
+  .divider h2 { margin:0; font: 400 22px/1.2 Georgia, "Times New Roman", serif; }
+  .divider p { margin:0; color:var(--muted); font-size:13px; }
+  td.better { color:var(--ok); } td.worse { color:var(--bad); } td.best { font-weight:700; }
+  td .d { color:var(--muted); font-size:11px; margin-left:4px; } td.better .d, td.worse .d { color:inherit; opacity:.85; }
+  .swatch { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px; vertical-align:-1px; }
 </style>
 </head>
 <body>
@@ -91,10 +99,10 @@
     <label><input type="checkbox" id="log"> Log scale loss</label>
   </div>
 
-  <section class="card"><h2>Training loss</h2><p class="note">Smoothed line over the faint raw values. Shaded bands are the 32K and 128K phases.</p><div class="chart tall" data-chart="loss"></div></section>
+  <section class="card"><h2>Training loss</h2><p class="note">Smoothed line over the faint raw values. Grey bands are the 32K and 128K phases; the tinted region is continued pretraining.</p><div class="legend" id="seglegend"></div><div class="chart tall" data-chart="loss"></div></section>
   <div class="grid">
-    <section class="card"><h2>Validation loss</h2><p class="note">Held-out 4K-context documents, every 250 steps.</p><div class="chart" data-chart="val_loss"></div></section>
-    <section class="card"><h2>Learning rate</h2><p class="note">Warmup, then the schedule over 100B tokens.</p><div class="chart" data-chart="lr"></div></section>
+    <section class="card"><h2>Validation loss</h2><p class="note">Held-out 4K-context documents, every 250 steps. Continued pretraining uses its own held-out set (the new mix), so its values start at a different level.</p><div class="chart" data-chart="val_loss"></div></section>
+    <section class="card"><h2>Learning rate</h2><p class="note">100B run: warmup then cosine. Continued pretraining: re-warmup, hold, then linear decay over the last 30%.</p><div class="chart" data-chart="lr"></div></section>
     <section class="card"><h2>Gradient norm</h2><p class="note">Before clipping at 1.0.</p><div class="chart" data-chart="grad_norm"></div></section>
     <section class="card"><h2>Throughput</h2><p class="note">Tokens per second. Dips are checkpoint saves.</p><div class="chart" data-chart="tok_s"></div></section>
     <section class="card"><h2>Compute</h2><p class="note">Model TFLOPS achieved.</p><div class="chart" data-chart="tflops"></div></section>
@@ -103,6 +111,19 @@
   <div class="grid">
     <section class="card"><h2>Phases</h2><div class="box"><table><thead><tr><th>Phase</th><th class="num">Context</th><th class="num">Steps</th><th class="num">Tokens at end</th><th>State</th></tr></thead><tbody id="phases"></tbody></table></div></section>
     <section class="card"><h2>Run events</h2><div class="box"><table><thead><tr><th>Time</th><th class="num">Step</th><th>Event</th></tr></thead><tbody id="events"></tbody></table></div></section>
+  </div>
+
+  <div id="sweep" hidden>
+    <div class="divider"><h2>Learning-rate sweep</h2><p id="sweeplede"></p></div>
+    <section class="card" style="margin-top:16px"><h2>Runs</h2><p class="note">Each run: 1B tokens of the continued-pretraining 4K mix from the 100B final checkpoint, on full GPU 4, one after another. Warmup ~100 steps, hold, linear decay over the last 30%.</p>
+      <div class="box"><table><thead><tr><th>Peak LR</th><th>State</th><th class="num">Step</th><th class="num">Train loss</th><th class="num">Max grad norm</th><th class="num">Tokens/s</th><th>Started</th></tr></thead><tbody id="sweepruns"></tbody></table></div></section>
+    <div class="grid" style="margin-top:12px">
+      <section class="card"><h2>Training loss</h2><p class="note">Smoothed, per run.</p><div class="legend sweeplegend"></div><div class="chart" data-sweep="loss"></div></section>
+      <section class="card"><h2>Learning rate</h2><p class="note">Schedule of each run.</p><div class="legend sweeplegend"></div><div class="chart" data-sweep="lr"></div></section>
+      <section class="card"><h2>Gradient norm</h2><p class="note">Spikes during warmup mean the peak is too high.</p><div class="legend sweeplegend"></div><div class="chart" data-sweep="grad_norm"></div></section>
+    </div>
+    <section class="card" style="margin-top:12px"><h2>Scores</h2><p class="note" id="scorenote">Scored on the 1g.23gb slice after each run. New-data loss should fall (learning); old-data loss should not rise much (forgetting). Change vs the starting checkpoint in small type; best value per row in bold.</p>
+      <div class="box" style="max-height:none"><table><thead id="scorehead"></thead><tbody id="scores"></tbody></table></div></section>
   </div>
 </div>
 
@@ -160,9 +181,18 @@ function render() {
   const lede = document.getElementById('lede');
   lede.replaceChildren();
   const add = (t, b) => { if (b) { const e = document.createElement('b'); e.textContent = t; lede.append(e); } else lede.append(t); };
-  add('100B tokens on one B200 (MIG slice to step 25,500, then full GPU 4). Training loss '); add(s.loss != null ? s.loss.toFixed(3) : '—', 1);
-  add(', validation loss '); add(s.val_loss != null ? s.val_loss.toFixed(3) : '—', 1);
-  add(' after '); add(tokB(s.tokens || 0), 1); add(' tokens, about '); add(s.eta_hours > 0 ? hours(s.eta_hours) : '—', 1); add(' to go.');
+  if (s.cpt) {
+    add('Continued pretraining: '); add(tokB(s.total_tokens || 0), 1); add(' more tokens on full GPU 4, from the 100B final checkpoint. Training loss ');
+    add(s.loss != null ? s.loss.toFixed(3) : '—', 1); add(', validation loss '); add(s.val_loss != null ? s.val_loss.toFixed(3) : '—', 1);
+    add(' after '); add(tokB(s.run_tokens || 0), 1); add(' of them, about '); add(s.eta_hours > 0 ? hours(s.eta_hours) : '—', 1); add(' to go.');
+  } else {
+    add('100B tokens on one B200 (MIG slice to step 25,500, then full GPU 4). Training loss '); add(s.loss != null ? s.loss.toFixed(3) : '—', 1);
+    add(', validation loss '); add(s.val_loss != null ? s.val_loss.toFixed(3) : '—', 1);
+    add(' after '); add(tokB(s.tokens || 0), 1); add(' tokens, about '); add(s.eta_hours > 0 ? hours(s.eta_hours) : '—', 1); add(' to go.');
+  }
+  const leg = document.getElementById('seglegend'); leg.replaceChildren();
+  if (s.cpt) [['100B pretraining', '--c0'], ['Continued pretraining (44B)', '--cpt']].forEach(([t, v]) => {
+    const sp = document.createElement('span'); const i = document.createElement('i'); i.style.background = css(v); sp.append(i, t); leg.append(sp); });
 
   const ph = D.phases, total = ph.length ? ph[ph.length - 1].end_tokens : 1;
   const tl = document.getElementById('timeline'), pl = document.getElementById('plabels');
@@ -170,14 +200,15 @@ function render() {
   ph.forEach((p, i) => {
     const w = 100 * (p.end_tokens - p.start_tokens) / total;
     const seg = document.createElement('div'); seg.className = 'seg'; seg.style.width = w + '%';
-    const f = document.createElement('i'); f.style.background = css('--c' + i);
+    const f = document.createElement('i'); f.style.background = p.cpt ? css('--cpt') : css('--c' + i);
+    if (p.cpt) f.style.opacity = [1, 0.75, 0.5][(p.phase - 4) % 3];
     f.style.width = 100 * Math.min(1, Math.max(0, ((s.tokens || 0) - p.start_tokens) / (p.end_tokens - p.start_tokens))) + '%';
     seg.append(f); tl.append(seg);
     const l = document.createElement('span'); l.style.width = w + '%';
     l.textContent = w > 8 ? `${p.name} · ${Math.round((p.end_tokens - p.start_tokens) / 1e9)}B` : p.context; pl.append(l);
   });
   const pline = document.getElementById('pline'); pline.replaceChildren();
-  [['Step ', d3.format(',')(s.step || 0), ' of ' + d3.format(',')(s.total_steps || 0)], ['', d3.format('.2%')(s.progress || 0), ' of 100B tokens'],
+  [['Step ', d3.format(',')(s.step || 0), ' of ' + d3.format(',')(s.total_steps || 0)], ['', d3.format('.2%')(s.progress || 0), ' of ' + tokB(s.total_tokens || 1e11) + ' tokens'],
    ['Phase ', s.phase || '—', ''], ['Running ', s.elapsed_hours ? hours(s.elapsed_hours) : '—', ''], ['Time left ', s.eta_hours > 0 ? hours(s.eta_hours) : '—', '']]
     .forEach(([a, b, c]) => { const sp = document.createElement('span'); const bb = document.createElement('b'); bb.textContent = b; sp.append(a, bb, c); pline.append(sp); });
 
@@ -191,7 +222,96 @@ function render() {
   ph.forEach((p) => { const tr = pt.insertRow(); tr.className = p.state; [[p.name], [p.context, 'num'], [d3.format(',')(p.start_step) + '–' + d3.format(',')(p.end_step), 'num'], [(p.end_tokens / 1e9).toFixed(1) + 'B', 'num'], [p.state]].forEach(([t, c]) => { const td = tr.insertCell(); td.textContent = t; if (c) td.className = c; }); });
   const et = document.getElementById('events'); et.replaceChildren();
   D.events.forEach((e) => { const tr = et.insertRow(); if (e.kind === 'crash') tr.className = 'crash'; const t = new Date(e.time); [[isNaN(t) ? e.time : tfmt(t)], [e.step == null ? '' : d3.format(',')(e.step), 'num'], [e.detail]].forEach(([x, c]) => { const td = tr.insertCell(); td.textContent = x; if (c) td.className = c; }); });
+  renderSweep();
   drawCharts();
+}
+
+// ------------------------------------------------------------------ LR sweep
+const sweepColor = (i) => css('--s' + (i % 4));
+const lrName = (lr) => d3.format('.0e')(lr).replace('e-', 'e-');
+function renderSweep() {
+  const sw = D.sweep, box = document.getElementById('sweep');
+  box.hidden = !sw || !sw.runs || !sw.runs.length;
+  if (box.hidden) return;
+  const stateName = { finished: 'Finished', training: 'Training', queued: 'Queued', failed: 'Failed', stalled: 'No new logs' };
+  const done = sw.runs.filter((r) => r.state === 'finished').length;
+  document.getElementById('sweeplede').textContent = `${done} of ${sw.runs.length} runs finished` + (sw.eval_state ? ` · scoring: ${sw.eval_state}` : '');
+  const tb = document.getElementById('sweepruns'); tb.replaceChildren();
+  sw.runs.forEach((r, i) => {
+    const tr = tb.insertRow(); if (r.state === 'training') tr.className = 'running'; if (r.state === 'queued') tr.className = 'upcoming'; if (r.state === 'failed') tr.className = 'crash';
+    const c0 = tr.insertCell(); const sq = document.createElement('span'); sq.className = 'swatch'; sq.style.background = sweepColor(i); c0.append(sq, lrName(r.lr));
+    [[stateName[r.state] || r.state], [r.total_steps ? `${d3.format(',')(r.step)} / ${d3.format(',')(r.total_steps)}` : '—', 'num'],
+     [r.loss != null ? r.loss.toFixed(3) : '—', 'num'], [r.max_grad_norm != null ? r.max_grad_norm.toFixed(2) : '—', 'num'],
+     [r.tok_s ? compact(r.tok_s) : '—', 'num'], [r.started ? tfmt(new Date(r.started)) : '—']]
+      .forEach(([t, c]) => { const td = tr.insertCell(); td.textContent = t; if (c) td.className = c; });
+  });
+  document.querySelectorAll('.sweeplegend').forEach((leg) => { leg.replaceChildren(); sw.runs.forEach((r, i) => {
+    const sp = document.createElement('span'); const it = document.createElement('i'); it.style.background = sweepColor(i); sp.append(it, 'peak ' + lrName(r.lr)); leg.append(sp); }); });
+  // Scores: rows are metrics, columns are the starting checkpoint and each run.
+  const labels = sw.labels || [], head = document.getElementById('scorehead'), body = document.getElementById('scores');
+  head.replaceChildren(); body.replaceChildren();
+  const hr = head.insertRow();
+  ['Metric', ...labels.map((l) => l === 'start' ? 'Start (100B final)' : 'Peak ' + lrName(+l.slice(2)))].forEach((t, i) => { const th = document.createElement('th'); th.textContent = t; if (i) th.className = 'num'; hr.append(th); });
+  if (!sw.scores.length) { const tr = body.insertRow(); const td = tr.insertCell(); td.colSpan = labels.length + 1; td.textContent = 'No scores yet: each run is scored on the slice after it finishes.'; td.style.color = css('--muted'); return; }
+  let group = null;
+  sw.scores.forEach((row) => {
+    if (row.group !== group) { group = row.group; const tr = body.insertRow(); const td = tr.insertCell(); td.colSpan = labels.length + 1; td.textContent = group; td.style.fontWeight = 600; td.style.paddingTop = '10px'; }
+    const tr = body.insertRow(); tr.insertCell().textContent = row.metric;
+    const vals = labels.map((l) => row.values[l]), base = row.values.start;
+    const cand = labels.map((l, i) => l === 'start' ? null : vals[i]).filter((v) => v != null);
+    const best = cand.length ? (row.lower_is_better ? d3.min(cand) : d3.max(cand)) : null;
+    const fmt = row.group === 'Benchmarks' ? (v) => v.toFixed(1) : (v) => v.toFixed(3);
+    labels.forEach((l, i) => {
+      const td = tr.insertCell(); td.className = 'num'; const v = vals[i];
+      if (v == null) { td.textContent = '—'; return; }
+      td.textContent = fmt(v);
+      if (l !== 'start' && base != null) {
+        const d = v - base, good = row.lower_is_better ? d < 0 : d > 0, tiny = Math.abs(d) < (row.group === 'Benchmarks' ? 0.5 : 0.005);
+        const sp = document.createElement('span'); sp.className = 'd'; sp.textContent = (d > 0 ? '+' : '') + fmt(d); td.append(sp);
+        if (!tiny) td.classList.add(good ? 'better' : 'worse');
+        if (v === best) td.classList.add('best');
+      }
+    });
+  });
+}
+
+function drawSweepCharts() { document.querySelectorAll('[data-sweep]').forEach(drawSweepChart); }
+function drawSweepChart(el) {
+  const kind = el.dataset.sweep, c = CH[kind];
+  el.replaceChildren();
+  const series = (D.sweep?.runs || []).map((r, i) => {
+    const pts = r.train.filter((p) => p[kind] != null).map((p) => ({ x: p.step, y: p[kind], step: p.step, tokens: p.tokens }));
+    return { name: 'peak ' + lrName(r.lr), color: sweepColor(i), pts, line: kind === 'lr' ? pts : ema(pts, Math.min(ui.smooth, 0.8)) };
+  }).filter((s) => s.pts.length);
+  if (!series.length) { const e = document.createElement('div'); e.className = 'empty'; e.textContent = 'No runs started yet'; el.append(e); return; }
+  const all = series.flatMap((s) => s.line);
+  const W = Math.max(280, el.clientWidth), H = 220;
+  const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('height', H);
+  let lo = kind === 'loss' ? d3.min(all, (p) => p.y) : 0, hi = d3.max(all, (p) => p.y);
+  if (kind === 'grad_norm') hi = Math.min(hi, Math.max(1.2, d3.quantile(all.map((p) => p.y).sort(d3.ascending), 0.99) * 1.3));
+  if (kind === 'loss') hi = Math.min(hi, lo + 1.5);
+  const pad = (hi - lo) * 0.08 || 0.05;
+  const y = d3.scaleLinear().domain([kind === 'loss' ? lo - pad : 0, hi + pad]).nice();
+  const yt = y.ticks(5);
+  const m = { top: 10, bottom: 24, left: 52, right: 12 };
+  y.range([H - m.bottom, m.top]);
+  const x = d3.scaleLinear().domain([0, d3.max(D.sweep.runs, (r) => r.total_steps || 0) || d3.max(all, (p) => p.x)]).range([m.left, W - m.right]);
+  svg.append('g').selectAll('line').data(yt).join('line').attr('x1', m.left).attr('x2', W - m.right).attr('y1', y).attr('y2', y).attr('stroke', css('--grid'));
+  svg.append('g').selectAll('text').data(yt).join('text').attr('x', m.left - 8).attr('y', y).attr('dy', '0.32em').attr('text-anchor', 'end').text(c.yf);
+  svg.append('line').attr('x1', m.left).attr('x2', W - m.right).attr('y1', H - m.bottom).attr('y2', H - m.bottom).attr('stroke', css('--line'));
+  svg.append('g').selectAll('text').data(x.ticks(5)).join('text').attr('x', x).attr('y', H - 6).attr('text-anchor', 'middle').text(XF.step);
+  const path = d3.line().x((p) => x(p.x)).y((p) => y(Math.min(p.y, y.domain()[1])));
+  series.forEach((s) => svg.append('path').attr('d', path(s.line)).attr('fill', 'none').attr('stroke', s.color).attr('stroke-width', 2).attr('stroke-linejoin', 'round'));
+  const tip = d3.select(el).append('div').attr('class', 'tip').style('display', 'none');
+  const rule = svg.append('line').attr('y1', m.top).attr('y2', H - m.bottom).attr('stroke', css('--muted')).attr('stroke-dasharray', '3 3').style('display', 'none');
+  const bis = d3.bisector((p) => p.x).center;
+  svg.append('rect').attr('x', m.left).attr('y', m.top).attr('width', W - m.left - m.right).attr('height', H - m.top - m.bottom).attr('fill', 'transparent')
+    .on('pointermove', (ev) => {
+      const [mx] = d3.pointer(ev), sx = x.invert(mx); rule.style('display', null).attr('x1', mx).attr('x2', mx);
+      tip.style('display', null).selectAll('*').remove(); tip.append('div').attr('class', 'h').text(`Step ${d3.format(',')(Math.round(sx))}`);
+      series.forEach((s) => { const p = s.line[bis(s.line, sx)]; if (p) tip.append('div').style('color', s.color).text(`${s.name}: ${c.yf(p.y)}`); });
+      const tw = tip.node().offsetWidth; tip.style('left', `${Math.min(Math.max(mx + 12, 0), W - tw)}px`).style('top', `${m.top}px`);
+    }).on('pointerleave', () => { tip.style('display', 'none'); rule.style('display', 'none'); });
 }
 
 const ema = (pts, a) => { if (a <= 0) return pts; let s = 0, w = 0; return pts.map((p) => { s = a * s + (1 - a) * p.y; w = a * w + (1 - a); return { ...p, y: s / w }; }); };
@@ -206,7 +326,8 @@ const CH = {
   mem_gb: { src: 'train', flat: true, zero: true, yf: (v) => v.toFixed(0) + ' GB', name: 'memory' },
 };
 
-function drawCharts() { document.querySelectorAll('.chart').forEach(drawChart); }
+function drawCharts() { document.querySelectorAll('[data-chart]').forEach(drawChart); if (!document.getElementById('sweep').hidden) drawSweepCharts(); }
+const segColor = (seg) => seg ? css('--cpt') : css('--c0');
 
 function drawChart(el) {
   const kind = el.dataset.chart, c = CH[kind];
@@ -214,12 +335,16 @@ function drawChart(el) {
   const tr = D.train.filter((r) => r.loss != null);
   const t0 = tr.length ? new Date(tr[0].time).getTime() : 0;
   const xv = (r) => ui.x === 'step' ? r.step : ui.x === 'tokens' ? r.tokens : (new Date(r.time).getTime() - t0) / 3.6e6;
-  let pts = D[c.src].filter((r) => r[kind] != null).map((r) => ({ x: xv(r), y: r[kind], step: r.step, tokens: r.tokens }));
+  let pts = D[c.src].filter((r) => r[kind] != null).map((r) => ({ x: xv(r), y: r[kind], step: r.step, tokens: r.tokens, seg: r.seg || 0 }));
   if (!pts.length) { const e = document.createElement('div'); e.className = 'empty'; e.textContent = 'No data yet'; el.append(e); return; }
   const xmax = d3.max(tr.length ? tr : D[c.src], xv), xmin = ui.range === 'recent' ? xmax * 0.9 : 0;
   pts = pts.filter((p) => p.x >= xmin);
-  const line = c.flat ? pts : ema(pts, ui.smooth);
-  const color = css('--c0');
+  // Each run segment (100B pretraining, continued pretraining) is smoothed and drawn on its own.
+  const segs = [...new Set(pts.map((p) => p.seg))];
+  const segPts = segs.map((sg) => pts.filter((p) => p.seg === sg));
+  const segLines = segPts.map((sp) => c.flat ? sp : ema(sp, ui.smooth));
+  const line = segLines.flat();
+  const color = segColor(line[line.length - 1].seg);
   const W = Math.max(280, el.clientWidth), H = el.classList.contains('tall') ? 320 : 220;
   const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('height', H);
   const log = kind === 'loss' && ui.log;
@@ -237,6 +362,16 @@ function drawChart(el) {
   const x = d3.scaleLinear().domain([xmin, Math.max(xmax, xmin + 1)]).range([m.left, W - m.right]);
   const id = 'c' + Math.random().toString(36).slice(2);
   svg.append('clipPath').attr('id', id).append('rect').attr('x', m.left).attr('y', m.top).attr('width', W - m.left - m.right).attr('height', H - m.top - m.bottom);
+  const cptPh = D.phases.filter((p) => p.cpt);
+  if (ui.x !== 'hours' && cptPh.length) {
+    const a = ui.x === 'step' ? cptPh[0].start_step : cptPh[0].start_tokens, b = ui.x === 'step' ? cptPh[cptPh.length - 1].end_step : cptPh[cptPh.length - 1].end_tokens;
+    const x0 = Math.max(x(a), m.left), x1 = Math.min(x(b), W - m.right);
+    if (x1 > x0) {
+      svg.append('rect').attr('x', x0).attr('y', m.top).attr('width', x1 - x0).attr('height', H - m.top - m.bottom).attr('fill', css('--cptband'));
+      svg.append('line').attr('x1', x0).attr('x2', x0).attr('y1', m.top).attr('y2', H - m.bottom).attr('stroke', css('--cpt')).attr('stroke-dasharray', '2 3').attr('opacity', 0.7);
+      if (x1 - x0 > 70) svg.append('text').attr('x', x0 + 4).attr('y', H - m.bottom - 6).style('fill', css('--cpt')).text('Continued pretraining');
+    }
+  }
   if (ui.x !== 'hours') D.phases.filter((p) => p.seq_len > 4096).forEach((p) => {
     const a = ui.x === 'step' ? p.start_step : p.start_tokens, b = ui.x === 'step' ? p.end_step : p.end_tokens;
     const x0 = Math.max(x(a), m.left), x1 = Math.min(x(b), W - m.right); if (x1 <= x0) return;
@@ -250,9 +385,12 @@ function drawChart(el) {
   svg.append('g').selectAll('text').data(xt).join('text').attr('x', x).attr('y', H - 6).attr('text-anchor', 'middle').text(XF[ui.x]);
   const plot = svg.append('g').attr('clip-path', `url(#${id})`);
   const path = d3.line().x((p) => x(p.x)).y((p) => y(log ? Math.max(p.y, 0.5) : p.y));
-  if (c.raw && ui.smooth > 0) plot.append('path').attr('d', path(pts)).attr('fill', 'none').attr('stroke', color).attr('stroke-width', 1).attr('opacity', 0.2);
-  plot.append('path').attr('d', path(line)).attr('fill', 'none').attr('stroke', color).attr('stroke-width', 2).attr('stroke-linejoin', 'round').attr('stroke-linecap', 'round');
-  if (c.dots) plot.append('g').selectAll('circle').data(line).join('circle').attr('cx', (p) => x(p.x)).attr('cy', (p) => y(p.y)).attr('r', 2.5).attr('fill', color);
+  segPts.forEach((sp, i) => {
+    const col = segColor(sp[0].seg);
+    if (c.raw && ui.smooth > 0) plot.append('path').attr('d', path(sp)).attr('fill', 'none').attr('stroke', col).attr('stroke-width', 1).attr('opacity', 0.2);
+    plot.append('path').attr('d', path(segLines[i])).attr('fill', 'none').attr('stroke', col).attr('stroke-width', 2).attr('stroke-linejoin', 'round').attr('stroke-linecap', 'round');
+    if (c.dots) plot.append('g').selectAll('circle').data(segLines[i]).join('circle').attr('cx', (p) => x(p.x)).attr('cy', (p) => y(p.y)).attr('r', 2.5).attr('fill', col);
+  });
   svg.append('circle').attr('cx', x(last.x)).attr('cy', y(last.y)).attr('r', 3.5).attr('fill', color);
   svg.append('text').attr('x', W - m.right + 8).attr('y', Math.min(Math.max(y(last.y), m.top + 6), H - m.bottom - 6)).attr('dy', '0.32em').style('fill', color).style('font-weight', 600).text(c.yf(last.y));
   const tip = d3.select(el).append('div').attr('class', 'tip').style('display', 'none');
@@ -263,9 +401,9 @@ function drawChart(el) {
   svg.append('rect').attr('x', m.left).attr('y', m.top).attr('width', W - m.left - m.right).attr('height', H - m.top - m.bottom).attr('fill', 'transparent')
     .on('pointermove', (ev) => {
       const [mx] = d3.pointer(ev); const i = bis(line, x.invert(mx)); const p = line[i]; if (!p) return hide();
-      const hx = x(p.x); rule.style('display', null).attr('x1', hx).attr('x2', hx); dot.style('display', null).attr('cx', hx).attr('cy', y(p.y));
+      const hx = x(p.x); rule.style('display', null).attr('x1', hx).attr('x2', hx); dot.style('display', null).attr('cx', hx).attr('cy', y(p.y)).attr('fill', segColor(p.seg));
       tip.style('display', null).selectAll('*').remove();
-      tip.append('div').attr('class', 'h').text(`Step ${d3.format(',')(p.step)} · ${tokB(p.tokens)} tokens`);
+      tip.append('div').attr('class', 'h').text(`${p.seg ? 'Continued pretraining · ' : ''}Step ${d3.format(',')(p.step)} · ${tokB(p.tokens)} tokens`);
       tip.append('div').text(`${c.name} ${c.yf(p.y)}`);
       if (c.raw && ui.smooth > 0 && pts[i]) tip.append('div').attr('class', 'h').text(`raw ${c.yf(pts[i].y)}`);
       const tw = tip.node().offsetWidth; tip.style('left', `${Math.min(Math.max(hx + 12, 0), W - tw)}px`).style('top', `${m.top}px`);
