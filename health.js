@@ -1,1 +1,1 @@
-window.LOOM_HEALTH={"at": 1794100983.451597, "text": "HEALTHY step 84771 loss 1.752 val 1.9934 disk 22370GB free; run finished"};
+window.LOOM_HEALTH={"at": 1794108605.9049559, "text": "mux_client_request_session: read from master failed: Broken pipe\r\nssh: Could not resolve hostname aicentre.sece.ac.in: nodename nor servname provided, or not known\r\nrsync(50942): error: unexpected end of file\nSSH_DOWN"};
