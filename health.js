@@ -1,1 +1,1 @@
-window.LOOM_HEALTH={"at": 1794108605.9049559, "text": "mux_client_request_session: read from master failed: Broken pipe\r\nssh: Could not resolve hostname aicentre.sece.ac.in: nodename nor servname provided, or not known\r\nrsync(50942): error: unexpected end of file\nSSH_DOWN"};
+window.LOOM_HEALTH={"at": 1794112392.2225542, "text": "ssh: Could not resolve hostname aicentre.sece.ac.in: nodename nor servname provided, or not known\r\nrsync(52330): error: unexpected end of file\nSSH_DOWN"};
