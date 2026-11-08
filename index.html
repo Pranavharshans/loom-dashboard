@@ -133,7 +133,10 @@ const ui = { x: 'step', range: 'all', smooth: 0.9, log: false };
 const compact = (v) => new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(v);
 const hours = (v) => v >= 48 ? (v / 24).toFixed(1) + ' days' : v >= 1 ? v.toFixed(1) + ' h' : Math.round(v * 60) + ' min';
 const tokB = (v) => v >= 1e9 ? (v / 1e9).toFixed(v >= 1e10 ? 1 : 2) + 'B' : compact(v);
-const tfmt = d3.timeFormat('%b %-d, %H:%M');
+// Times are shown in IST whatever the viewer's time zone.
+const ist = d => new Date(d.getTime() + (330 + d.getTimezoneOffset()) * 60000);
+const hm = d => d3.timeFormat('%H:%M')(ist(d)) + ' IST';
+const tfmt = d => d3.timeFormat('%b %-d, %H:%M')(ist(d)) + ' IST';
 let D = null;
 
 function loadHealth() {
@@ -144,7 +147,7 @@ function loadHealth() {
     const h = window.LOOM_HEALTH, el = document.getElementById('health');
     if (!h) return;
     const ok = h.text.startsWith('HEALTHY');
-    el.textContent = `Health check ${d3.timeFormat('%H:%M')(new Date(h.at * 1000))}: ${ok ? 'healthy' : h.text.split('\n').slice(0, 3).join(' · ')}`;
+    el.textContent = `Health check ${hm(new Date(h.at * 1000))}: ${ok ? 'healthy' : h.text.split('\n').slice(0, 3).join(' · ')}`;
     el.style.color = ok ? css('--ok') : css('--bad');
   };
   s.onerror = () => s.remove();
@@ -167,7 +170,7 @@ function tick() {
   const total = D.next_at - D.fetched_at;
   document.getElementById('countdown').textContent = left > 0 ? `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}` : 'any moment';
   document.getElementById('tfill').style.width = (100 * (1 - left / total)) + '%';
-  document.getElementById('fetched').textContent = 'Fetched ' + tfmt(new Date(D.fetched_at * 1000)) + (D.status[0]?.last_logged ? ' · last step logged ' + d3.timeFormat('%H:%M')(new Date(D.status[0].last_logged)) : '');
+  document.getElementById('fetched').textContent = 'Fetched ' + tfmt(new Date(D.fetched_at * 1000)) + (D.status[0]?.last_logged ? ' · last step logged ' + hm(new Date(D.status[0].last_logged)) : '');
   if (left <= 0) loadData();
 }
 
