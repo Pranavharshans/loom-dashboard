@@ -1,1 +1,1 @@
-window.LOOM_HEALTH={"at": 1794223386.347807, "text": "HEALTHY step 33520 loss 1.395 val 1.879 disk 22312GB free"};
+window.LOOM_HEALTH={"at": 1794226985.982423, "text": "ISSUES step 34110 loss 1.526 val 1.8827 disk 22293GB free\n- training loss went up: 1.375 -> 1.608\n- peak memory 121.16 GB is close to the slice limit"};
