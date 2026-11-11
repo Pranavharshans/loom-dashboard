@@ -1,1 +1,1 @@
-window.LOOM_HEALTH={"at": 1794385383.8550882, "text": "HEALTHY step 5920 loss 0.907 val 1.1343 disk 22673GB free"};
+window.LOOM_HEALTH={"at": 1794388986.15364, "text": "ISSUES step 6460 loss 0.927 val 1.1338 disk 22668GB free\n- training process is not running and the restart wrapper is gone"};
