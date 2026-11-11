@@ -6,8 +6,8 @@
 <title>Loom-LFM3-520M training</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <style>
-  :root { --bg:#f7f7f5; --panel:#fff; --fg:#1b1b1a; --muted:#6b6a66; --line:#e3e2dd; --grid:#eeede9; --ok:#1f8a4c; --warn:#b07a12; --bad:#c2412d; --c0:#3f6fd8; --c1:#d26a2b; --c2:#2f9e8f; --c3:#8a5bd6; --cpt:#c23d7a; --cptband:rgba(194,61,122,.07); --s0:#2f9e8f; --s1:#3f6fd8; --s2:#d26a2b; --s3:#c2412d; }
-  @media (prefers-color-scheme: dark) { :root { --bg:#151514; --panel:#1e1e1c; --fg:#ecebe6; --muted:#9c9b95; --line:#33322f; --grid:#2a2a27; --ok:#4cc27e; --warn:#e0a53a; --bad:#ef6b55; --c0:#6f97ee; --c1:#ec8c4f; --c2:#4fc2b2; --c3:#a988ea; --cpt:#ec77ad; --cptband:rgba(236,119,173,.10); --s0:#4fc2b2; --s1:#6f97ee; --s2:#ec8c4f; --s3:#ef6b55; } }
+  :root { --bg:#f7f7f5; --panel:#fff; --fg:#1b1b1a; --muted:#6b6a66; --line:#e3e2dd; --grid:#eeede9; --ok:#1f8a4c; --warn:#b07a12; --bad:#c2412d; --c0:#3f6fd8; --c1:#d26a2b; --c2:#2f9e8f; --c3:#8a5bd6; --cpt:#c23d7a; --cptband:rgba(194,61,122,.07); --s0:#2f9e8f; --s1:#3f6fd8; --s2:#d26a2b; --s3:#c2412d; --a0:#7a4fd0; --a1:#c2412d; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#151514; --panel:#1e1e1c; --fg:#ecebe6; --muted:#9c9b95; --line:#33322f; --grid:#2a2a27; --ok:#4cc27e; --warn:#e0a53a; --bad:#ef6b55; --c0:#6f97ee; --c1:#ec8c4f; --c2:#4fc2b2; --c3:#a988ea; --cpt:#ec77ad; --cptband:rgba(236,119,173,.10); --s0:#4fc2b2; --s1:#6f97ee; --s2:#ec8c4f; --s3:#ef6b55; --a0:#a98bf0; --a1:#ef6b55; } }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif; }
   .wrap { max-width: 1280px; margin: 0 auto; padding: 20px 16px 40px; display:flex; flex-direction:column; gap:16px; }
@@ -65,6 +65,12 @@
   .divider p { margin:0; color:var(--muted); font-size:13px; }
   td.better { color:var(--ok); } td.worse { color:var(--bad); } td.best { font-weight:700; }
   td .d { color:var(--muted); font-size:11px; margin-left:4px; } td.better .d, td.worse .d { color:inherit; opacity:.85; }
+  .agentic { display:flex; flex-direction:column; gap:12px; }
+  .agentic .head { display:flex; align-items:baseline; flex-wrap:wrap; gap:8px 14px; }
+  .agentic .head h2 { margin:0; font: 400 22px/1.2 Georgia, "Times New Roman", serif; }
+  .tag { font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:var(--a0); border:1px solid var(--a0); border-radius:999px; padding:1px 8px; }
+  .earlier { margin-top:20px; padding-top:20px; border-top:3px double var(--line); }
+  .earlier h2.title { margin:0 0 4px; font: 400 22px/1.2 Georgia, "Times New Roman", serif; }
   .swatch { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px; vertical-align:-1px; }
 </style>
 </head>
@@ -72,7 +78,7 @@
 <div class="wrap">
   <header>
     <div>
-      <h1>Loom-LFM3-520M pretraining</h1>
+      <h1>Loom-LFM3-520M training</h1>
       <p class="lede" id="lede">Loading…</p>
     </div>
     <div class="right">
@@ -83,6 +89,45 @@
     </div>
   </header>
   <div class="banner" id="sshwarn" hidden>Couldn't reach the server on the last update (SSH connection dropped). Showing the last data fetched. Reconnect the SSH session to resume.</div>
+
+  <div class="agentic" id="agentic" hidden>
+    <div class="head"><span class="tag">Current run</span><h2>Agentic mid-training · 24B tokens</h2><p class="note" style="margin:0" id="alede"></p></div>
+    <section class="card">
+      <div class="timeline" id="atimeline"></div>
+      <div class="labels" id="aplabels"></div>
+      <div class="pline" id="apline"></div>
+    </section>
+    <dl class="kpis" id="akpis"></dl>
+    <div class="toolbar" style="position:static">
+      <span>X axis <span class="seg-btn" data-actl="x"><button data-v="step" aria-pressed="true">Step</button><button data-v="tokens" aria-pressed="false">Tokens</button><button data-v="hours" aria-pressed="false">Hours</button></span></span>
+      <label>Smoothing <input type="range" id="asmooth" min="0" max="0.99" step="0.01" value="0.9"> <b id="asmoothv">0.90</b></label>
+      <span>Charts here show only this run; earlier runs are further down.</span>
+    </div>
+    <section class="card"><h2>Training loss</h2><p class="note">Smoothed over the faint raw values. Batches mix agent runs, docs and replay, so raw values jump. Bands mark the 32K and 128K phases; the dashed line is the 12B checkpoint for the decay branch.</p><div class="chart tall" data-achart="loss"></div></section>
+    <div class="grid">
+      <section class="card"><h2>Held-out loss</h2><p class="note">Random held-out 16K documents from this run's mix, every 250 steps. Never trained on.</p><div class="chart" data-achart="val_loss"></div></section>
+      <section class="card"><h2>Progress</h2><p class="note">Tokens trained over wall-clock time, against the 24B target.</p><div class="chart" data-achart="progress"></div></section>
+      <section class="card"><h2>Learning rate</h2><p class="note">Warm-up 1%, hold at the peak picked by the sweep, linear decay over the last 30% to a tenth of the peak.</p><div class="chart" data-achart="lr"></div></section>
+      <section class="card"><h2>Gradient norm</h2><p class="note">Before clipping at 1.0.</p><div class="chart" data-achart="grad_norm"></div></section>
+      <section class="card"><h2>Throughput</h2><p class="note">Training tokens per second. Dips are checkpoint saves.</p><div class="chart" data-achart="tok_s"></div></section>
+      <section class="card"><h2>Compute</h2><p class="note">Model TFLOPS achieved on GPU 4.</p><div class="chart" data-achart="tflops"></div></section>
+      <section class="card"><h2>Peak GPU memory</h2><p class="note">GB allocated by PyTorch, of 179 GB on GPU 4.</p><div class="chart" data-achart="mem_gb"></div></section>
+    </div>
+    <div class="grid">
+      <section class="card"><h2>Phases</h2><div class="box"><table><thead><tr><th>Phase</th><th class="num">Steps</th><th class="num">Tokens at end</th><th>State</th></tr></thead><tbody id="aphases"></tbody></table></div></section>
+      <section class="card"><h2>Run events</h2><div class="box"><table><thead><tr><th>Time</th><th class="num">Step</th><th>Event</th></tr></thead><tbody id="aevents"></tbody></table></div></section>
+    </div>
+    <section class="card"><h2>LR sweep and tool-reply pilot (finished)</h2><p class="note">Four runs of 0.75B tokens at 16K from the CPT final. Picked: the lowest peak LR that kept old-data loss within +0.03 of the CPT checkpoint, with loss on tool replies left on.</p>
+      <div class="grid" style="margin-top:4px">
+        <div class="box" style="max-height:none"><table><thead><tr><th>Run</th><th class="num">Peak LR</th><th>Tool-reply loss</th><th class="num">Final held-out loss</th><th>Used</th></tr></thead><tbody id="asweep"></tbody></table></div>
+        <div><div class="legend" id="asweeplegend"></div><div class="chart" data-asweep="val_loss"></div></div>
+      </div>
+    </section>
+    <section class="card"><h2>Loss by span type</h2><p class="note">Held-out loss split by what the predicted token is, after each sweep run, against the CPT checkpoint. Lower is better; change vs CPT in small type. Old-data sets (math, code, knowledge) check forgetting.</p>
+      <div class="box" style="max-height:none"><table><thead id="aspanhead"></thead><tbody id="aspan"></tbody></table></div></section>
+  </div>
+
+  <div class="earlier" id="earlier"><h2 class="title">Earlier runs</h2><p class="lede" id="oldlede"></p></div>
 
   <section class="card">
     <div class="timeline" id="timeline"></div>
@@ -170,7 +215,7 @@ function tick() {
   const total = D.next_at - D.fetched_at;
   document.getElementById('countdown').textContent = left > 0 ? `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}` : 'any moment';
   document.getElementById('tfill').style.width = (100 * (1 - left / total)) + '%';
-  document.getElementById('fetched').textContent = 'Fetched ' + tfmt(new Date(D.fetched_at * 1000)) + (D.status[0]?.last_logged ? ' · last step logged ' + hm(new Date(D.status[0].last_logged)) : '');
+  document.getElementById('fetched').textContent = 'Fetched ' + tfmt(new Date(D.fetched_at * 1000)) + ((D.agentic?.status.last_logged || D.status[0]?.last_logged) ? ' · last step logged ' + hm(new Date(D.agentic?.status.last_logged || D.status[0].last_logged)) : '');
   if (left <= 0) loadData();
 }
 
@@ -179,9 +224,9 @@ function render() {
   document.getElementById('sshwarn').hidden = D.ssh_ok;
   const st = document.getElementById('state');
   const names = { training: 'Training', starting: 'Starting', restarting: 'Restarting after a crash', stopped: 'Stopped', finished: 'Finished' };
-  st.textContent = names[s.state] || s.state || '—';
-  st.className = 'pill ' + ({ training: 'ok', starting: 'warn', restarting: 'bad', stopped: 'bad' }[s.state] || '');
-  const lede = document.getElementById('lede');
+  if (!D.agentic) { st.textContent = names[s.state] || s.state || '—';
+  st.className = 'pill ' + ({ training: 'ok', starting: 'warn', restarting: 'bad', stopped: 'bad' }[s.state] || ''); }
+  const lede = document.getElementById(D.agentic ? 'oldlede' : 'lede');
   lede.replaceChildren();
   const add = (t, b) => { if (b) { const e = document.createElement('b'); e.textContent = t; lede.append(e); } else lede.append(t); };
   if (s.cpt) {
@@ -226,6 +271,7 @@ function render() {
   const et = document.getElementById('events'); et.replaceChildren();
   D.events.forEach((e) => { const tr = et.insertRow(); if (e.kind === 'crash') tr.className = 'crash'; const t = new Date(e.time); [[isNaN(t) ? e.time : tfmt(t)], [e.step == null ? '' : d3.format(',')(e.step), 'num'], [e.detail]].forEach(([x, c]) => { const td = tr.insertCell(); td.textContent = x; if (c) td.className = c; }); });
   renderSweep();
+  renderAgentic();
   drawCharts();
 }
 
@@ -329,7 +375,7 @@ const CH = {
   mem_gb: { src: 'train', flat: true, zero: true, yf: (v) => v.toFixed(0) + ' GB', name: 'memory' },
 };
 
-function drawCharts() { document.querySelectorAll('[data-chart]').forEach(drawChart); if (!document.getElementById('sweep').hidden) drawSweepCharts(); }
+function drawCharts() { drawAgenticCharts(); document.querySelectorAll('[data-chart]').forEach(drawChart); if (!document.getElementById('sweep').hidden) drawSweepCharts(); }
 const segColor = (seg) => seg ? css('--cpt') : css('--c0');
 
 function drawChart(el) {
@@ -413,7 +459,199 @@ function drawChart(el) {
     }).on('pointerleave', hide);
 }
 
-document.querySelectorAll('.seg-btn').forEach((g) => g.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+
+// ------------------------------------------------------------------ agentic mid-training (current run, kept separate)
+const aui = { x: 'step', smooth: 0.9 };
+const aColor = () => css('--a0');
+const AS_COL = { lr5e5: '--s0', lr1e4: '--s1', lr2e4: '--s2', lr1e4_noresp: '--s3' };
+const sweepCol = (n) => css(AS_COL[n.replace(/-/g, '')] || '--muted');
+const sweepLabel = (r) => `peak ${lrName(r.lr)}${r.tool_reply_loss === 'off' ? ', tool-reply loss off' : ''}`;
+function renderAgentic() {
+  const A = D.agentic, box = document.getElementById('agentic');
+  box.hidden = !A; document.getElementById('earlier').hidden = !A;
+  if (!A) return;
+  const s = A.status;
+  const st = document.getElementById('state');
+  const names = { training: 'Training', starting: 'Starting', stopped: 'Stopped', finished: 'Finished', queued: 'Queued' };
+  st.textContent = 'Agentic mid-training · ' + (names[s.state] || s.state);
+  st.className = 'pill ' + ({ training: 'ok', starting: 'warn', stopped: 'bad' }[s.state] || '');
+  const lede = document.getElementById('lede'); lede.replaceChildren();
+  const add = (el, t, b) => { if (b) { const e = document.createElement('b'); e.textContent = t; el.append(e); } else el.append(t); };
+  add(lede, 'Agentic mid-training from the 44B CPT final: '); add(lede, tokB(s.tokens), 1); add(lede, ' of '); add(lede, tokB(s.total_tokens), 1);
+  add(lede, ' tokens. Held-out loss '); add(lede, s.val_loss != null ? s.val_loss.toFixed(3) : '—', 1); add(lede, ', about ');
+  add(lede, s.eta_hours > 0 ? hours(s.eta_hours) : '—', 1); add(lede, ' to go.');
+  const al = document.getElementById('alede'); al.replaceChildren();
+  add(al, `Peak LR ${s.peak_lr != null ? lrName(s.peak_lr) : '—'}, loss on tool replies on · 16K, then 32K, then 128K context · one B200`);
+
+  const ph = A.phases, total = s.total_tokens || 1;
+  const tl = document.getElementById('atimeline'), pl = document.getElementById('aplabels'); tl.replaceChildren(); pl.replaceChildren();
+  ph.forEach((p, i) => {
+    const w = 100 * (p.end_tokens - p.start_tokens) / total;
+    const seg = document.createElement('div'); seg.className = 'seg'; seg.style.width = w + '%';
+    const f = document.createElement('i'); f.style.background = aColor(); f.style.opacity = [1, 0.75, 0.55][i % 3];
+    f.style.width = 100 * Math.min(1, Math.max(0, (s.tokens - p.start_tokens) / (p.end_tokens - p.start_tokens))) + '%';
+    seg.append(f); tl.append(seg);
+    const l = document.createElement('span'); l.style.width = w + '%'; l.textContent = w > 8 ? `${p.name} · ${Math.round((p.end_tokens - p.start_tokens) / 1e9)}B` : `${p.seq_len / 1024}K`; pl.append(l);
+  });
+  const pline = document.getElementById('apline'); pline.replaceChildren();
+  [['Step ', d3.format(',')(s.step), ' of ' + d3.format(',')(s.total_steps)], ['', d3.format('.2%')(s.progress), ' of ' + tokB(total) + ' tokens'],
+   ['Phase ', s.phase, ''], ['Running ', s.elapsed_hours ? hours(s.elapsed_hours) : '—', ''], ['Time left ', s.eta_hours > 0 ? hours(s.eta_hours) : '—', ''],
+   ['Decay-branch checkpoint at step ', s.decay_branch_step ? d3.format(',')(s.decay_branch_step) : '—', '']]
+    .forEach(([a, b, c]) => { const sp = document.createElement('span'); const bb = document.createElement('b'); bb.textContent = b; sp.append(a, bb, c); pline.append(sp); });
+  const k = document.getElementById('akpis'); k.replaceChildren();
+  const dv = s.val_loss != null && s.first_val_loss != null ? s.val_loss - s.first_val_loss : null;
+  [['Train loss', s.loss?.toFixed(3), 'Mean of last 10 logs'],
+   ['Held-out loss', s.val_loss?.toFixed(3), dv == null ? '—' : `${dv > 0 ? '+' : ''}${dv.toFixed(3)} since first eval · best ${s.best_val_loss.toFixed(3)}`],
+   ['Learning rate', s.lr != null ? d3.format('.2e')(s.lr) : null, 'Peak ' + (s.peak_lr != null ? lrName(s.peak_lr) : '—')],
+   ['Throughput', s.tok_s ? compact(s.tok_s) : null, 'Tokens per second'], ['Compute', s.tflops?.toFixed(0), 'Model TFLOPS'],
+   ['Peak memory', s.mem_gb ? s.mem_gb.toFixed(1) + ' GB' : null, 'Of 179 GB'],
+   ['Restarts', s.restarts ?? null, 'Last checkpoint ' + (s.last_checkpoint != null ? d3.format(',')(s.last_checkpoint) : '—')]]
+    .forEach(([t, v, n]) => { const d = document.createElement('div'); d.className = 'kpi'; const dt = document.createElement('dt'); dt.textContent = t; const dd = document.createElement('dd'); dd.textContent = v ?? '—'; const sm = document.createElement('small'); sm.textContent = n; d.append(dt, dd, sm); k.append(d); });
+  const pt = document.getElementById('aphases'); pt.replaceChildren();
+  ph.forEach((p) => { const tr = pt.insertRow(); tr.className = p.state; [[p.name], [d3.format(',')(p.start_step) + '–' + d3.format(',')(p.end_step), 'num'], [(p.end_tokens / 1e9).toFixed(1) + 'B', 'num'], [p.state]].forEach(([t, c]) => { const td = tr.insertCell(); td.textContent = t; if (c) td.className = c; }); });
+  const et = document.getElementById('aevents'); et.replaceChildren();
+  A.events.forEach((e) => { const tr = et.insertRow(); const t = new Date(e.time); [[isNaN(t) ? e.time : tfmt(t)], [d3.format(',')(e.step || 0), 'num'], [e.detail]].forEach(([x, c]) => { const td = tr.insertCell(); td.textContent = x; if (c) td.className = c; }); });
+  // Sweep table, legend and span-loss table.
+  const sb = document.getElementById('asweep'); sb.replaceChildren();
+  const bestV = d3.min(A.sweep, (r) => r.final_val_loss);
+  A.sweep.forEach((r) => {
+    const tr = sb.insertRow(); const c0 = tr.insertCell(); const sq = document.createElement('span'); sq.className = 'swatch'; sq.style.background = sweepCol(r.name); c0.append(sq, r.name);
+    const used = Math.abs(r.lr - A.chosen.lr) < 1e-12 && r.tool_reply_loss === A.chosen.tool_reply_loss;
+    [[lrName(r.lr), 'num'], [r.tool_reply_loss], [r.final_val_loss != null ? r.final_val_loss.toFixed(4) : '—', 'num' + (r.final_val_loss === bestV ? ' best' : '')], [used ? 'Main run' : '']]
+      .forEach(([t, c]) => { const td = tr.insertCell(); td.textContent = t; if (c) td.className = c; });
+    if (used) tr.className = 'running';
+  });
+  const lg = document.getElementById('asweeplegend'); lg.replaceChildren();
+  A.sweep.forEach((r) => { const sp = document.createElement('span'); const it = document.createElement('i'); it.style.background = sweepCol(r.name); sp.append(it, sweepLabel(r)); lg.append(sp); });
+  const sh = document.getElementById('aspanhead'), sbody = document.getElementById('aspan'); sh.replaceChildren(); sbody.replaceChildren();
+  const models = Object.keys(A.span || {});
+  if (!models.length) { const tr = sbody.insertRow(); const td = tr.insertCell(); td.textContent = 'No span-loss scores yet.'; return; }
+  const hr = sh.insertRow();
+  ['Held-out set', 'Span', ...models.map((m) => m === 'cpt' ? 'CPT checkpoint' : m)].forEach((t, i) => { const th = document.createElement('th'); th.textContent = t; if (i > 1) th.className = 'num'; hr.append(th); });
+  const base = A.span.cpt || {};
+  Object.keys(base).forEach((set) => Object.keys(base[set]).forEach((span) => {
+    const vals = models.map((m) => A.span[m]?.[set]?.[span]?.loss);
+    if (vals.every((v) => v == null)) return;
+    const tr = sbody.insertRow(); tr.insertCell().textContent = set; tr.insertCell().textContent = span.replace('_', ' ');
+    const cand = vals.slice(1).filter((v) => v != null); const best = cand.length ? d3.min(cand) : null;
+    vals.forEach((v, i) => {
+      const td = tr.insertCell(); td.className = 'num'; if (v == null) { td.textContent = '—'; return; }
+      td.textContent = v.toFixed(3);
+      const b = vals[0];
+      if (i > 0 && b != null) { const d = v - b; const sp = document.createElement('span'); sp.className = 'd'; sp.textContent = (d > 0 ? '+' : '') + d.toFixed(3); td.append(sp);
+        if (Math.abs(d) >= 0.005) td.classList.add(d < 0 ? 'better' : 'worse'); if (v === best) td.classList.add('best'); }
+    });
+  }));
+}
+
+const ACH = {
+  loss: { src: 'train', raw: true, yf: (v) => v.toFixed(2), name: 'loss' },
+  val_loss: { src: 'evals', flat: true, dots: true, yf: (v) => v.toFixed(3), name: 'held-out loss' },
+  progress: { src: 'train', flat: true, zero: true, yf: tokB, name: 'tokens', xForce: 'hours', y: (r) => r.tokens },
+  lr: { src: 'train', flat: true, zero: true, yf: (v) => v === 0 ? '0' : d3.format('.1e')(v), name: 'lr' },
+  grad_norm: { src: 'train', raw: true, zero: true, yf: (v) => v.toFixed(2), name: 'grad norm' },
+  tok_s: { src: 'train', raw: true, zero: true, yf: compact, name: 'tok/s' },
+  tflops: { src: 'train', raw: true, zero: true, yf: (v) => v.toFixed(0), name: 'TFLOPS' },
+  mem_gb: { src: 'train', flat: true, zero: true, yf: (v) => v.toFixed(0) + ' GB', name: 'memory' },
+};
+function drawAgenticCharts() {
+  if (!D.agentic) return;
+  document.querySelectorAll('[data-achart]').forEach(drawAChart);
+  document.querySelectorAll('[data-asweep]').forEach(drawASweep);
+}
+function drawAChart(el) {
+  const A = D.agentic, kind = el.dataset.achart, c = ACH[kind];
+  el.replaceChildren();
+  const tr = A.train; const t0 = tr.length ? new Date(tr[0].time).getTime() : 0;
+  const xm = c.xForce || aui.x;
+  const tokAt = (step) => step * (A.status.total_tokens / (A.status.total_steps || 1));
+  const timeAt = (r) => r.time ? (new Date(r.time).getTime() - t0) / 3.6e6 : null;
+  const xv = (r) => xm === 'step' ? r.step : xm === 'tokens' ? (r.tokens ?? tokAt(r.step)) : timeAt(r);
+  let pts = A[c.src].map((r) => ({ x: xv(r), y: c.y ? c.y(r) : r[kind], step: r.step, tokens: r.tokens ?? tokAt(r.step) })).filter((p) => p.y != null && p.x != null);
+  if (!pts.length) { const e = document.createElement('div'); e.className = 'empty'; e.textContent = 'No data yet'; el.append(e); return; }
+  const line = c.flat ? pts : ema(pts, aui.smooth);
+  const W = Math.max(280, el.clientWidth), H = el.classList.contains('tall') ? 320 : 220;
+  const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('height', H).attr('role', 'img').attr('aria-label', c.name + ' of the agentic mid-training run');
+  const xEnd = kind === 'progress' ? Math.max(d3.max(pts, (p) => p.x), (A.status.elapsed_hours || 0) + (A.status.eta_hours || 0))
+    : xm === 'step' ? A.status.total_steps : xm === 'tokens' ? A.status.total_tokens : d3.max(pts, (p) => p.x);
+  let lo = c.zero ? 0 : d3.min(line, (p) => p.y), hi = d3.max((c.raw ? pts : line).map((p) => p.y));
+  if (kind === 'progress') hi = A.status.total_tokens;
+  if (kind === 'loss') hi = Math.min(hi, d3.min(line, (p) => p.y) + 1.2);
+  if (kind === 'grad_norm') hi = Math.min(hi, Math.max(1.2, d3.quantile(pts.map((p) => p.y).sort(d3.ascending), 0.99) * 1.3));
+  const pad = (hi - lo) * 0.08 || 0.05;
+  const y = d3.scaleLinear().domain([c.zero ? 0 : lo - pad, hi + (kind === 'progress' ? 0 : pad)]).nice();
+  const yt = y.ticks(5);
+  const meas = (arr) => { const t = svg.append('text').attr('x', -9999); const w = d3.max(arr, (s) => t.text(s).node().getComputedTextLength()) || 0; t.remove(); return w; };
+  const last = line[line.length - 1];
+  const m = { top: 10, bottom: 24, left: meas(yt.map(c.yf)) + 10, right: meas([c.yf(last.y)]) + 14 };
+  y.range([H - m.bottom, m.top]);
+  const x = d3.scaleLinear().domain([0, Math.max(xEnd || 1, d3.max(pts, (p) => p.x))]).range([m.left, W - m.right]);
+  if (xm !== 'hours') A.phases.filter((p) => p.seq_len > 16384).forEach((p) => {
+    const a = xm === 'step' ? p.start_step : p.start_tokens, b = xm === 'step' ? p.end_step : p.end_tokens;
+    svg.append('rect').attr('x', x(a)).attr('y', m.top).attr('width', Math.max(0, x(b) - x(a))).attr('height', H - m.top - m.bottom).attr('fill', css('--grid')).attr('opacity', p.seq_len > 32768 ? 1 : 0.6);
+    if (x(b) - x(a) > 26) svg.append('text').attr('x', x(a) + 3).attr('y', m.top + 12).text(p.seq_len / 1024 + 'K');
+  });
+  if (xm !== 'hours' && A.status.decay_branch_step) {
+    const bx = x(xm === 'step' ? A.status.decay_branch_step : tokAt(A.status.decay_branch_step));
+    svg.append('line').attr('x1', bx).attr('x2', bx).attr('y1', m.top).attr('y2', H - m.bottom).attr('stroke', css('--muted')).attr('stroke-dasharray', '2 3').attr('opacity', 0.6);
+  }
+  if (kind === 'progress') svg.append('line').attr('x1', m.left).attr('x2', W - m.right).attr('y1', y(A.status.total_tokens)).attr('y2', y(A.status.total_tokens)).attr('stroke', css('--muted')).attr('stroke-dasharray', '4 3');
+  svg.append('g').selectAll('line').data(yt).join('line').attr('x1', m.left).attr('x2', W - m.right).attr('y1', y).attr('y2', y).attr('stroke', css('--grid'));
+  svg.append('g').selectAll('text').data(yt).join('text').attr('x', m.left - 8).attr('y', y).attr('dy', '0.32em').attr('text-anchor', 'end').text(c.yf);
+  svg.append('line').attr('x1', m.left).attr('x2', W - m.right).attr('y1', H - m.bottom).attr('y2', H - m.bottom).attr('stroke', css('--line'));
+  svg.append('g').selectAll('text').data(x.ticks(Math.max(2, Math.floor((W - m.left - m.right) / 80)))).join('text').attr('x', x).attr('y', H - 6).attr('text-anchor', 'middle').text(XF[xm]);
+  const path = d3.line().x((p) => x(p.x)).y((p) => y(Math.min(p.y, y.domain()[1])));
+  const col = aColor();
+  if (c.raw && aui.smooth > 0) svg.append('path').attr('d', path(pts)).attr('fill', 'none').attr('stroke', col).attr('stroke-width', 1).attr('opacity', 0.2);
+  svg.append('path').attr('d', path(line)).attr('fill', 'none').attr('stroke', col).attr('stroke-width', 2).attr('stroke-linejoin', 'round');
+  if (c.dots) svg.append('g').selectAll('circle').data(line).join('circle').attr('cx', (p) => x(p.x)).attr('cy', (p) => y(p.y)).attr('r', 2.5).attr('fill', col);
+  svg.append('circle').attr('cx', x(last.x)).attr('cy', y(Math.min(last.y, y.domain()[1]))).attr('r', 3.5).attr('fill', col);
+  svg.append('text').attr('x', W - m.right + 8).attr('y', Math.min(Math.max(y(last.y), m.top + 6), H - m.bottom - 6)).attr('dy', '0.32em').style('fill', col).style('font-weight', 600).text(c.yf(last.y));
+  const tip = d3.select(el).append('div').attr('class', 'tip').style('display', 'none');
+  const rule = svg.append('line').attr('y1', m.top).attr('y2', H - m.bottom).attr('stroke', css('--muted')).attr('stroke-dasharray', '3 3').style('display', 'none');
+  const bis = d3.bisector((p) => p.x).center;
+  svg.append('rect').attr('x', m.left).attr('y', m.top).attr('width', W - m.left - m.right).attr('height', H - m.top - m.bottom).attr('fill', 'transparent')
+    .on('pointermove', (ev) => {
+      const [mx] = d3.pointer(ev); const i = bis(line, x.invert(mx * W / el.clientWidth)); const p = line[i]; if (!p) return;
+      const hx = x(p.x); rule.style('display', null).attr('x1', hx).attr('x2', hx);
+      tip.style('display', null).selectAll('*').remove();
+      tip.append('div').attr('class', 'h').text(`Step ${d3.format(',')(p.step)} · ${tokB(p.tokens)} tokens`);
+      tip.append('div').text(`${c.name} ${c.yf(p.y)}`);
+      if (c.raw && aui.smooth > 0 && pts[i]) tip.append('div').attr('class', 'h').text(`raw ${c.yf(pts[i].y)}`);
+      const tw = tip.node().offsetWidth, sx = el.clientWidth / W; tip.style('left', `${Math.min(Math.max(hx * sx + 12, 0), el.clientWidth - tw)}px`).style('top', `${m.top}px`);
+    }).on('pointerleave', () => { tip.style('display', 'none'); rule.style('display', 'none'); });
+}
+function drawASweep(el) {
+  const A = D.agentic; el.replaceChildren();
+  const series = A.sweep.map((r) => ({ r, pts: r.evals.map((e) => ({ x: e.step, y: e.val_loss })) })).filter((s) => s.pts.length);
+  if (!series.length) { const e = document.createElement('div'); e.className = 'empty'; e.textContent = 'No sweep data'; el.append(e); return; }
+  const all = series.flatMap((s) => s.pts);
+  const W = Math.max(280, el.clientWidth), H = 220, m = { top: 10, bottom: 24, left: 52, right: 12 };
+  const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('height', H).attr('role', 'img').attr('aria-label', 'Held-out loss of each sweep run by step');
+  const lo = d3.min(all, (p) => p.y), hi = d3.max(all, (p) => p.y), pad = (hi - lo) * 0.1 || 0.01;
+  const y = d3.scaleLinear().domain([lo - pad, hi + pad]).nice().range([H - m.bottom, m.top]);
+  const x = d3.scaleLinear().domain([0, d3.max(A.sweep, (r) => r.steps) || d3.max(all, (p) => p.x)]).range([m.left, W - m.right]);
+  svg.append('g').selectAll('line').data(y.ticks(5)).join('line').attr('x1', m.left).attr('x2', W - m.right).attr('y1', y).attr('y2', y).attr('stroke', css('--grid'));
+  svg.append('g').selectAll('text').data(y.ticks(5)).join('text').attr('x', m.left - 8).attr('y', y).attr('dy', '0.32em').attr('text-anchor', 'end').text((v) => v.toFixed(3));
+  svg.append('g').selectAll('text').data(x.ticks(5)).join('text').attr('x', x).attr('y', H - 6).attr('text-anchor', 'middle').text(XF.step);
+  const path = d3.line().x((p) => x(p.x)).y((p) => y(p.y));
+  series.forEach((s) => { const col = sweepCol(s.r.name);
+    svg.append('path').attr('d', path(s.pts)).attr('fill', 'none').attr('stroke', col).attr('stroke-width', 2);
+    svg.append('g').selectAll('circle').data(s.pts).join('circle').attr('cx', (p) => x(p.x)).attr('cy', (p) => y(p.y)).attr('r', 2.5).attr('fill', col); });
+  const tip = d3.select(el).append('div').attr('class', 'tip').style('display', 'none');
+  svg.append('rect').attr('x', m.left).attr('y', m.top).attr('width', W - m.left - m.right).attr('height', H - m.top - m.bottom).attr('fill', 'transparent')
+    .on('pointermove', (ev) => { const [mx] = d3.pointer(ev); const sx = x.invert(mx * W / el.clientWidth);
+      tip.style('display', null).selectAll('*').remove(); tip.append('div').attr('class', 'h').text(`Step ~${d3.format(',')(Math.round(sx))}`);
+      series.forEach((s) => { const p = s.pts[d3.bisector((q) => q.x).center(s.pts, sx)]; if (p) tip.append('div').style('color', sweepCol(s.r.name)).text(`${sweepLabel(s.r)}: ${p.y.toFixed(4)}`); });
+      const tw = tip.node().offsetWidth; tip.style('left', `${Math.min(mx * el.clientWidth / W + 12, el.clientWidth - tw)}px`).style('top', `${m.top}px`); })
+    .on('pointerleave', () => tip.style('display', 'none'));
+}
+document.querySelectorAll('[data-actl]').forEach((g) => g.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+  aui[g.dataset.actl] = b.dataset.v; g.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); if (D) drawAgenticCharts();
+})));
+document.getElementById('asmooth').addEventListener('input', (e) => { aui.smooth = +e.target.value; document.getElementById('asmoothv').textContent = aui.smooth.toFixed(2); if (D) drawAgenticCharts(); });
+
+document.querySelectorAll('.seg-btn[data-ctl]').forEach((g) => g.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
   ui[g.dataset.ctl] = b.dataset.v; g.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); if (D) drawCharts();
 })));
 document.getElementById('smooth').addEventListener('input', (e) => { ui.smooth = +e.target.value; document.getElementById('smoothv').textContent = ui.smooth.toFixed(2); if (D) drawCharts(); });
